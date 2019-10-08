@@ -5,3 +5,4 @@ To run you need maven 3.0 or later version, java 1.8.0. To check this run "mvn -
 To run application click "run.bat".
 ## LABS:
 * Lab 1: Asynchronous bidirectional byte data transfer https://github.com/s1ovak/TOKS_labs/commit/9883c78b44febfa458b8d2e1cf77bc0703a2581c
+* Lab 2: Package data transfer https://github.com/s1ovak/TOKS_labs/commit/a89c3c90d62e1f07adb9acf04b4a26726872b61a
