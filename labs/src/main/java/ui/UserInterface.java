@@ -5,6 +5,7 @@ import jssc.SerialPortEvent;
 import jssc.SerialPortEventListener;
 import jssc.SerialPortList;
 import service.SerialPortService;
+import service.TranslationNumberUtil;
 
 import javax.swing.*;
 import java.awt.*;
@@ -12,12 +13,18 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
+import java.util.List;
 
 public class UserInterface {
     private static final int WIDTH = 800;
     private static final int HEIGHT = 620;
     private static final Font textFont = new Font("Text font", Font.ITALIC, 15);
     private static final Font headerFont = new Font("Header font", Font.BOLD, 20);
+
+    private static Integer sourceInt = -1;
+    private static Integer destinationInt = -1;
+    private static List<Character> dataBytes = new ArrayList<Character>();
 
     private static JTextArea outputArea;
     private static JLabel debugLabel;
@@ -36,6 +43,11 @@ public class UserInterface {
     private static JButton connectButton;
     private static JButton disconnectButton;
     private static JButton clearOutput;
+    private static JButton setSenderButton;
+    private static JButton setReceiverButton;
+    private static JTextField sender;
+    private static JTextField receiver;
+    private static JCheckBox errorSimulation;
 
     public void init() {
         JFrame frame = new JFrame("Lab 1");
@@ -49,7 +61,7 @@ public class UserInterface {
         inputPanel.setLayout(new BorderLayout());
 
         debugPanel = new JPanel();
-        debugPanel.setLayout(new GridLayout(12, 1));
+        debugPanel.setLayout(new GridLayout(13, 1));
 
         outputPanel = new JPanel();
         outputPanel.setLayout(new BorderLayout());
@@ -61,6 +73,7 @@ public class UserInterface {
         JScrollPane sp1 = new JScrollPane(inputArea);
         inputArea.setLineWrap(true);
         inputArea.setFont(textFont);
+        inputArea.setEditable(false);
 
         JLabel inputHeader = new JLabel("Input");
         inputHeader.setFont(headerFont);
@@ -70,7 +83,7 @@ public class UserInterface {
         /**
          * Output panel
          */
-        outputArea = new JTextArea(5, 60);
+        outputArea = new JTextArea(4, 60);
         JScrollPane sp = new JScrollPane(outputArea);
         outputArea.setFont(textFont);
         outputArea.setLineWrap(true);
@@ -97,6 +110,7 @@ public class UserInterface {
         debugPanel.add(debugHeaderPanel);
         debugPanel.add(debugLabel);
 
+
         JPanel portsPanel = new JPanel();
         portsPanel.setLayout(new GridLayout(1, 4));
         JLabel portsHeader = new JLabel("Ports:");
@@ -113,12 +127,35 @@ public class UserInterface {
         portsPanel.add(refreshButton);
         debugPanel.add(portsPanel);
 
+
+        JPanel packetParamsPanel = new JPanel();
+        packetParamsPanel.setLayout(new GridBagLayout());
+        JLabel senderHeader = new JLabel("Source: ");
+        packetParamsPanel.add(senderHeader);
+        sender = new JTextField(3);
+        packetParamsPanel.add(sender);
+        setSenderButton = new JButton("set");
+        packetParamsPanel.add(setSenderButton);
+        JLabel receiverHeader = new JLabel("Destination: ");
+        packetParamsPanel.add(receiverHeader);
+        receiver = new JTextField(3);
+        packetParamsPanel.add(receiver);
+        setReceiverButton = new JButton("set");
+        packetParamsPanel.add(setReceiverButton);
+        errorSimulation = new JCheckBox("Error");
+        packetParamsPanel.add(errorSimulation);
+        JLabel commentLabel = new JLabel("(Set sa & da and connect to start work)");
+        packetParamsPanel.add(commentLabel);
+        debugPanel.add(packetParamsPanel);
+
+
         JLabel dataBitsHeader = new JLabel("Data bits:");
         dataBitsHeader.setFont(textFont);
         debugPanel.add(dataBitsHeader);
         String[] dataBitsNames = {"5", "6", "7", "8"};
         dataBits = new JComboBox<String>(dataBitsNames);
         debugPanel.add(dataBits);
+
 
         JLabel speedHeader = new JLabel("Speed: ");
         speedHeader.setFont(textFont);
@@ -127,12 +164,14 @@ public class UserInterface {
         speeds = new JComboBox<String>(bounds);
         debugPanel.add(speeds);
 
+
         JLabel parityHeader = new JLabel("Parity:");
         parityHeader.setFont(textFont);
         debugPanel.add(parityHeader);
         String[] parityNames = {"EVEN", "MARK", "NONE", "ODD", "SPACE"};
         parities = new JComboBox<String>(parityNames);
         debugPanel.add(parities);
+
 
         JLabel stopBitsHeader = new JLabel("Stop bits:");
         stopBitsHeader.setFont(textFont);
@@ -141,9 +180,11 @@ public class UserInterface {
         stopBits = new JComboBox<String>(stopBitsNames);
         debugPanel.add(stopBits);
 
+
         rootPanel.add(inputPanel, BorderLayout.NORTH);
         rootPanel.add(outputPanel, BorderLayout.CENTER);
         rootPanel.add(debugPanel, BorderLayout.SOUTH);
+
 
         frame.add(rootPanel);
         frame.setResizable(false);
@@ -177,6 +218,36 @@ public class UserInterface {
             }
         });
 
+        /*sender.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                if (sender.getText().length() >= 3) {
+                    e.consume();
+                }
+            }
+        });*/
+
+        /*receiver.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                if (sender.getText().length() >= 3) {
+                    e.consume();
+                }
+            }
+        });*/
+
+        setSenderButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                setSourceInt(sender.getText());
+            }
+        });
+
+        setReceiverButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                setDestinationInt(receiver.getText());
+            }
+        });
+
         inputArea.addKeyListener(new KeyAdapter() {
             @Override
             public void keyReleased(KeyEvent e) {
@@ -184,9 +255,15 @@ public class UserInterface {
                 if (!currentInputText.equals(newText) && serialPortService != null) {
                     currentInputText = newText;
                     char value = newText.charAt(newText.length() - 1);
-                    if(value < 'А' || value > 'я') {
-                        serialPortService.write((byte) value);
-                        debugLabel.setText("Debug: send '" + value + "'");
+                    if (value < 'А' || value > 'я') {
+                        dataBytes.add(value);
+                        if(dataBytes.size() == 7) {
+                            byte[] packet = serialPortService.createPacket(
+                                    destinationInt, sourceInt, dataBytes, errorSimulation.isSelected());
+                            debugMessage(TranslationNumberUtil.binaryToHex(TranslationNumberUtil.bytesToBinary(packet)));
+                            serialPortService.write(packet);
+                            dataBytes.clear();
+                        }
                     }
                 }
             }
@@ -202,9 +279,21 @@ public class UserInterface {
             }
 
             if (serialPortEvent.isRXCHAR() && serialPortEvent.getEventValue() > 0) {
-                String value = new String(serialPortService.read());
-                outputArea.setText(outputArea.getText() + value);
-                debugLabel.setText("Debug: get symbol '" + value + "'");
+                byte[] packet = serialPortService.unstuff(serialPortService.read(serialPortEvent.getEventValue()));
+                byte receivedSource = serialPortService.getSourceFromPacket(packet);
+                byte receivedDestination = serialPortService.getDestinationFromPacket(packet);
+                if(receivedDestination != (byte) ((int) sourceInt)) {
+                    debugLabel.setText("Debug: the package received is not for us.");
+                }
+                else if (serialPortService.getErrorFromPacket(packet)) {
+                    debugLabel.setText("Debug: packet with error from " + receivedSource + ". Can't read.");
+                }
+                else {
+                    String value = new String(serialPortService.getDataFromPacket(packet));
+                    outputArea.setText(outputArea.getText() + value);
+                    debugLabel.setText("Debug: get '" + value + "'" + " from "
+                            + receivedSource);
+                }
             }
         }
     }
@@ -242,6 +331,7 @@ public class UserInterface {
             debugMessage("successfully connected.");
             connectButton.setEnabled(false);
             disconnectButton.setEnabled(true);
+            checkSourceAndDestinationAndSetInput();
         } else {
             debugMessage("can't connect.");
         }
@@ -253,6 +343,7 @@ public class UserInterface {
             serialPortService.close();
             connectButton.setEnabled(true);
             disconnectButton.setEnabled(false);
+            inputArea.setEditable(false);
         }
 
     }
@@ -327,6 +418,66 @@ public class UserInterface {
             return value;
         } catch (NullPointerException e) {
             return -1;
+        }
+    }
+
+    private void setSourceInt(String sender) {
+        int result;
+        try {
+            result = Integer.parseInt(sender);
+        } catch (NumberFormatException ex) {
+            debugMessage("incorrect source");
+            sourceInt = -1;
+            inputArea.setEditable(false);
+            return;
+        }
+        if (result < 0 || result > 255) {
+            debugMessage("address should be 0-255");
+            sourceInt = -1;
+            inputArea.setEditable(false);
+            return;
+        }
+        if (result == destinationInt) {
+            debugMessage("source can`t be equal destination");
+            sourceInt = -1;
+            inputArea.setEditable(false);
+            return;
+        }
+        sourceInt = result;
+        debugMessage("source set " + result);
+        checkSourceAndDestinationAndSetInput();
+    }
+
+    private void setDestinationInt(String receiver) {
+        int result;
+        try {
+            result = Integer.parseInt(receiver);
+        } catch (NumberFormatException ex) {
+            debugMessage("incorrect destination");
+            destinationInt = -1;
+            inputArea.setEditable(false);
+            return;
+        }
+        if (result < 0 || result > 255) {
+            debugMessage("address should be 0-255");
+            destinationInt = -1;
+            inputArea.setEditable(false);
+            return;
+        }
+        if (result == sourceInt) {
+            debugMessage("source can`t be equal destination");
+            destinationInt = -1;
+            inputArea.setEditable(false);
+            return;
+        }
+        destinationInt = result;
+        debugMessage("destination set " + result);
+        checkSourceAndDestinationAndSetInput();
+    }
+
+    private void checkSourceAndDestinationAndSetInput() {
+        if (sourceInt != -1 && destinationInt != -1 && serialPortService != null && serialPortService.isOpen()) {
+            inputArea.setEditable(true);
         }
     }
 }
