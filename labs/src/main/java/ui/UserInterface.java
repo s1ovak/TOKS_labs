@@ -4,6 +4,7 @@ import jssc.SerialPort;
 import jssc.SerialPortEvent;
 import jssc.SerialPortEventListener;
 import jssc.SerialPortList;
+import service.CRCUtil;
 import service.SerialPortService;
 import service.TranslationNumberUtil;
 
@@ -144,7 +145,7 @@ public class UserInterface {
         packetParamsPanel.add(setReceiverButton);
         errorSimulation = new JCheckBox("Error");
         packetParamsPanel.add(errorSimulation);
-        JLabel commentLabel = new JLabel("(Set sa & da and connect to start work)");
+        JLabel commentLabel = new JLabel("(Set sa & da and connect to the port to get started)");
         packetParamsPanel.add(commentLabel);
         debugPanel.add(packetParamsPanel);
 
@@ -190,6 +191,12 @@ public class UserInterface {
         frame.setResizable(false);
         frame.setVisible(true);
 
+
+        /*String a = "001100010011001000110011001101000011010100110110001101110000000";
+        String CRC = CRCUtil.divideCRC(a);
+        System.out.println(CRC);
+        System.out.println(CRCUtil.divideCRC(a.substring(0, 11)+CRC));
+*/
 
         /**
          * Listeners
@@ -257,7 +264,7 @@ public class UserInterface {
                     char value = newText.charAt(newText.length() - 1);
                     if (value < 'А' || value > 'я') {
                         dataBytes.add(value);
-                        if(dataBytes.size() == 7) {
+                        if (dataBytes.size() == 7) {
                             byte[] packet = serialPortService.createPacket(
                                     destinationInt, sourceInt, dataBytes, errorSimulation.isSelected());
                             debugMessage(TranslationNumberUtil.binaryToHex(TranslationNumberUtil.bytesToBinary(packet)));
@@ -282,17 +289,24 @@ public class UserInterface {
                 byte[] packet = serialPortService.unstuff(serialPortService.read(serialPortEvent.getEventValue()));
                 byte receivedSource = serialPortService.getSourceFromPacket(packet);
                 byte receivedDestination = serialPortService.getDestinationFromPacket(packet);
-                if(receivedDestination != (byte) ((int) sourceInt)) {
+                String receivedWithCRC = TranslationNumberUtil.bytesToBinary(packet).substring(0, 87);
+                if (receivedDestination != (byte) ((int) sourceInt)) {
                     debugLabel.setText("Debug: the package received is not for us.");
-                }
-                else if (serialPortService.getErrorFromPacket(packet)) {
-                    debugLabel.setText("Debug: packet with error from " + receivedSource + ". Can't read.");
-                }
-                else {
-                    String value = new String(serialPortService.getDataFromPacket(packet));
-                    outputArea.setText(outputArea.getText() + value);
-                    debugLabel.setText("Debug: get '" + value + "'" + " from "
-                            + receivedSource);
+                } else {
+                    if (!CRCUtil.divideCRC(receivedWithCRC).equals("0000000")) {
+                        String value = new String(serialPortService.getDataFromPacket(packet));
+                        debugLabel.setText("Debug: get '" + value + "'" + " from "
+                                + receivedSource + " with single error.");
+                        packet = TranslationNumberUtil.binaryToBytes(CRCUtil.fixSingleError(receivedWithCRC));
+                        value = new String(serialPortService.getDataFromPacket(packet));
+                        outputArea.setText(outputArea.getText() + value);
+                        debugLabel.setText(debugLabel.getText() + " Error fixed.");
+                    } else {
+                        String value = new String(serialPortService.getDataFromPacket(packet));
+                        outputArea.setText(outputArea.getText() + value);
+                        debugLabel.setText("Debug: get '" + value + "'" + " from "
+                                + receivedSource);
+                    }
                 }
             }
         }
