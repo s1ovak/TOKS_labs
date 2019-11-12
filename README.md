@@ -8,3 +8,4 @@ To run application click "run.bat".
 * Lab 2: Package data transfer https://github.com/s1ovak/TOKS_labs/commit/a89c3c90d62e1f07adb9acf04b4a26726872b61a
 * Lab 3: CRC coding https://github.com/s1ovak/TOKS_labs/commit/93dd948f521366eb6e0b558e0f08f2c877728140
 * Lab 4: Random mono channel access methods https://github.com/s1ovak/TOKS_labs/commit/99e4f66eb5d13a4d00e33846ad1c3a897cc97aba
+* Lab 5: Token Ring https://github.com/s1ovak/TOKS_labs/commit/f6bf517c37d52059b0e0af4ca9032b9a6c60e195
